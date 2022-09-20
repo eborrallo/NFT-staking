@@ -132,9 +132,6 @@ contract Board is Ownable, ERC721Holder {
         );
         Staker storage staker = stakers[_user];
 
-        uint256 lastIndex = staker.tokenIds.length - 1;
-        uint256 lastIndexKey = staker.tokenIds[lastIndex];
-
         if (staker.tokenIds.length > 0) {
             staker.tokenIds.pop();
         }

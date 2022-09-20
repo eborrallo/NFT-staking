@@ -4,10 +4,14 @@ import {expect} from "chai";
 const {ethers} = require("hardhat");
 
 describe("Nft mint", function () {
+    let NftContract: any
+    beforeEach(async () => {
+        const NftFactory = await ethers.getContractFactory("Pacman");
+        NftContract = await NftFactory.deploy();
+    })
     it("User can mint NFT", async function () {
         const [owner, addr1] = await ethers.getSigners();
-        const NftFactory = await ethers.getContractFactory("Pacman");
-        const NftContract = await NftFactory.deploy();
+
         await NftContract.safeMint(owner.address)
         await NftContract.safeMint(addr1.address)
 
@@ -19,8 +23,6 @@ describe("Nft mint", function () {
     });
     it("Random user can not mint NFT", async function () {
         const [owner, addr1] = await ethers.getSigners();
-        const NftFactory = await ethers.getContractFactory("Pacman");
-        const NftContract = await NftFactory.deploy();
         const mintRole = await NftContract.MINTER_ROLE()
         await expect(NftContract.connect(addr1).safeMint(owner.address))
             .to.be.revertedWith(`AccessControl: account ${addr1.address.toLowerCase()} is missing role ${mintRole}`)

@@ -4,10 +4,14 @@ import {expect} from "chai";
 const {ethers} = require("hardhat");
 
 describe("Token mint", function () {
+    let TokenContract: any
+    beforeEach(async () => {
+        const TokenFactory = await ethers.getContractFactory("PacDot");
+        TokenContract = await TokenFactory.deploy();
+    })
     it("User can mint Tokens", async function () {
         const [owner, addr1] = await ethers.getSigners();
-        const TokenFactory = await ethers.getContractFactory("PacDot");
-        const TokenContract = await TokenFactory.deploy();
+
         await TokenContract.mint(owner.address, 100)
         await TokenContract.mint(addr1.address, 200)
 
@@ -18,8 +22,6 @@ describe("Token mint", function () {
     });
     it("Random user can not mint Tokens", async function () {
         const [owner, addr1] = await ethers.getSigners();
-        const TokenFactory = await ethers.getContractFactory("PacDot");
-        const TokenContract = await TokenFactory.deploy();
         const mintRole = await TokenContract.MINTER_ROLE()
         await expect(TokenContract.connect(addr1).mint(addr1.address, 100))
             .to.be.revertedWith(`AccessControl: account ${addr1.address.toLowerCase()} is missing role ${mintRole}`)
