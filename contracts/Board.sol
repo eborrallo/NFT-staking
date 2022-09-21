@@ -18,11 +18,13 @@ interface IRewardToken is IERC20 {
 contract Board is Ownable, ERC721Holder {
     IRewardToken public rewardsToken;
     IERC721 public nft;
+    uint256 public liquidationThreshold;
 
     uint256 public stakedTotal;
     uint256 public stakingStartTime;
     uint256 constant stakingTime = 60 seconds;
     uint256 constant token = 10e18;
+    mapping(uint256 => uint256)public  tokensValue;
 
     struct Staker {
         uint256[] tokenIds;
@@ -34,6 +36,7 @@ contract Board is Ownable, ERC721Holder {
     constructor(IERC721 _nft, IRewardToken _rewardsToken) {
         nft = _nft;
         rewardsToken = _rewardsToken;
+        liquidationThreshold = 50;
     }
 
     mapping(address => Staker) public stakers;
@@ -42,6 +45,8 @@ contract Board is Ownable, ERC721Holder {
     bool public tokensClaimable;
     bool initialised;
 
+    event Liquidated(address indexed user, uint256 tokenId);
+
     event Staked(address owner, uint256 amount);
 
     event Unstaked(address owner, uint256 amount);
@@ -49,6 +54,7 @@ contract Board is Ownable, ERC721Holder {
     event RewardPaid(address indexed user, uint256 reward);
 
     event ClaimableStatusUpdated(bool status);
+    event LiquidationThresholdUpdated(uint256 amount);
 
     event EmergencyUnstake(address indexed user, uint256 tokenId);
 
@@ -57,6 +63,13 @@ contract Board is Ownable, ERC721Holder {
         require(!initialised, "Already initialised");
         stakingStartTime = block.timestamp;
         initialised = true;
+    }
+
+    function changeLiquidationThreshold(uint256 th) public onlyOwner {
+        require(th < 100, "The Liquidation Threshold should be less than 100");
+        require(th > 0, "The Liquidation Threshold should be more than 0");
+        liquidationThreshold = th;
+        emit LiquidationThresholdUpdated(th);
     }
 
     function setTokensClaimable(bool _enabled) public onlyOwner {
@@ -93,6 +106,7 @@ contract Board is Ownable, ERC721Holder {
 
         staker.tokenIds.push(_tokenId);
         staker.tokenStakingCoolDown[_tokenId] = block.timestamp;
+        tokensValue[_tokenId] = random(50, 50);
         tokenOwner[_tokenId] = _user;
         nft.approve(address(this), _tokenId);
         nft.safeTransferFrom(_user, address(this), _tokenId);
@@ -136,6 +150,7 @@ contract Board is Ownable, ERC721Holder {
             staker.tokenIds.pop();
         }
         staker.tokenStakingCoolDown[_tokenId] = 0;
+        tokensValue[_tokenId] = 0;
         delete tokenOwner[_tokenId];
 
         nft.safeTransferFrom(address(this), _user, _tokenId);
@@ -191,8 +206,29 @@ contract Board is Ownable, ERC721Holder {
 
     }
 
-    //LiquidationCall
-    function asGhostEatsTo(address _user) public {
 
+    function healthFactor( uint256 tokenId) private view returns (uint){
+        return 100 * ((actualValuation() * liquidationThreshold) / 100) / tokensValue[tokenId];
     }
+
+    function actualValuation() public view returns (uint) {
+        return random(0, 51);
+    }
+
+    function canLiquidate(uint256 tokenId) public view returns (bool) {
+        return (healthFactor( tokenId) > 20);
+    }
+
+    //LiquidationCall
+    function asGhostEatsTo(address _user, uint256 tokenId) public {
+        require(canLiquidate( tokenId), "This token is not yet enable to be liquidated");
+        emit Liquidated(_user, tokenId);
+    }
+
+    function random(uint min, uint max) private view returns (uint){
+        uint timeSeconds = block.timestamp % 60;
+        uint timeWithOutSeconds = block.timestamp-timeSeconds;
+        return min + (uint(keccak256(abi.encodePacked(timeWithOutSeconds))) % max);
+    }
+
 }

@@ -28,7 +28,7 @@ describe("Staking actions", function () {
         expect(stakedTokens.length).to.be.equal(1)
 
     }
-    const pastTime = async (seconds: number) => {
+    const timeSkip = async (seconds: number) => {
         await network.provider.send("evm_increaseTime", [seconds])
         await network.provider.send("evm_mine")
     }
@@ -78,7 +78,7 @@ describe("Staking actions", function () {
         await expect(NftContract.setApprovalForAll(StakingSystemContract.address, true)).to.emit(NftContract, "ApprovalForAll")
             .withArgs(deployer.address, StakingSystemContract.address, true);
         await userStakeNft(addr1)
-        await pastTime(60)
+        await timeSkip(60)
         await StakingSystemContract.connect(addr1).unstake(0)
         let stakedTokens = await StakingSystemContract.connect(addr1).getStakedTokens(addr1.address)
         stakedTokens = stakedTokens.map((t: any) => t.toString())
@@ -92,7 +92,7 @@ describe("Staking actions", function () {
         await expect(NftContract.setApprovalForAll(StakingSystemContract.address, true)).to.emit(NftContract, "ApprovalForAll")
             .withArgs(deployer.address, StakingSystemContract.address, true);
         await userStakeNft(addr1)
-        await pastTime(3600)
+        await timeSkip(3600)
         await expect(StakingSystemContract.connect(addr1).claimReward(addr1.address))
             .to.emit(StakingSystemContract, "RewardPaid")
             .withArgs(addr1.address, '600000000000000000000');
@@ -105,9 +105,28 @@ describe("Staking actions", function () {
             .withArgs(deployer.address, StakingSystemContract.address, true);
         await userStakeNft(addr1)
         await expect(StakingSystemContract.connect(addr1).claimReward(addr1.address)).to.be.revertedWith('0 rewards yet')
-        await pastTime(60)
+        await timeSkip(60)
         await StakingSystemContract.connect(addr1).claimReward(addr1.address)
-        await pastTime(10)
+        await timeSkip(10)
         await expect(StakingSystemContract.connect(addr1).claimReward(addr1.address)).to.be.revertedWith('0 rewards yet')
     });
+
+    it("User can liquidate NFT", async function () {
+        const [deployer, addr1] = await ethers.getSigners();
+        await userStakeNft(addr1)
+        await StakingSystemContract.changeLiquidationThreshold(99)
+        let canLiquidate = await StakingSystemContract.canLiquidate( 0)
+
+        if (canLiquidate) {
+            await StakingSystemContract.changeLiquidationThreshold(1)
+        }
+
+        await expect(StakingSystemContract.asGhostEatsTo(addr1.address, 0)).to.be.revertedWith("This token is not yet enable to be liquidated")
+        await StakingSystemContract.changeLiquidationThreshold(99)
+        await expect(StakingSystemContract.asGhostEatsTo(addr1.address, 0))
+            .to.emit(StakingSystemContract, "Liquidated")
+            .withArgs(addr1.address, 0);
+
+    })
+
 });
