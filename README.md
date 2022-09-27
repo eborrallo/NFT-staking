@@ -47,7 +47,7 @@ into the board to see how they farm points.
 - [x] See pending rewards
 - [x] Liquidate position
 - [x] Tests
-- [ ] Dockerize project
+- [x] Dockerize project
 - [ ] Improvements SafeMath
 
 ***

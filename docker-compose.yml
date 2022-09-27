@@ -1,0 +1,17 @@
+version: '3.4'
+
+x-app-service: &default-app
+  build: .
+  command: ''
+  volumes:
+    - .:/app
+
+services:
+  app:
+    <<: *default-app
+  blockchain:
+    image: ethereumoptimism/hardhat
+    ports:
+      - "8545:8545"
+volumes:
+  node_modules:
